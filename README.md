@@ -1,68 +1,81 @@
-# Autonomous AI Company Simulator
+# 🤖 Autonomous AI Company Simulator
 
-An interactive web application where multiple autonomous AI agents collaborate to simulate a functioning company. Built with **Next.js**, **React**, and integrated with Large Language Models (LLMs) to demonstrate multi-agent orchestration, prompt chaining, and context management.
+> A multi-agent workspace where AI roles collaborate to turn a high-level goal into a structured solution.
 
-## 🚀 Features
+The simulator explores a simple question: **what happens when different AI agents are given different responsibilities instead of asking one model to do everything?**
 
-- **Multi-Agent Orchestration**: Watch distinct AI personas (CEO, Developer, Designer) communicate and pass context to solve complex problems.
-- **Dynamic Prompt Chaining**: Agents use structured prompts to analyze, plan, and execute tasks collaboratively.
-- **Real-time Interaction**: Users can provide a high-level goal and observe the agents debate, align, and generate a final solution.
-- **Modern Tech Stack**: Built with Next.js App Router, React 18, and Tailwind CSS for a seamless, responsive UI.
+## 🧠 The agent team
 
-## 🧠 Architecture & Agents
+```text
+                 USER GOAL
+                     │
+                     ▼
+              ┌─────────────┐
+              │     CEO     │  Strategy / decomposition
+              └──────┬──────┘
+                     │ context
+          ┌──────────┴──────────┐
+          ▼                     ▼
+   ┌─────────────┐       ┌─────────────┐
+   │  DEVELOPER  │       │   DESIGNER  │
+   │ architecture│       │ UX / UI     │
+   └──────┬──────┘       └──────┬──────┘
+          └──────────┬──────────┘
+                     ▼
+               FINAL OUTPUT
+```
 
-The simulator defines specific roles, each constrained by a unique system prompt to act within their domain:
+### CEO — Strategic Planner
+Breaks the user's goal into actionable requirements and priorities.
 
-1. **CEO (Strategic Planner)**: Breaks down the user's overarching goal into actionable requirements.
-2. **Developer (Technical Lead)**: Analyzes requirements and proposes technical architecture and code implementation.
-3. **Designer (UX/UI Lead)**: Focuses on user experience, interface design, and aesthetic consistency.
+### Developer — Technical Lead
+Turns the requirements into architecture and implementation ideas.
 
-The system orchestrates a workflow where the CEO's output feeds into the Developer and Designer, demonstrating practical **RAG-style context window management** without losing focus.
+### Designer — UX/UI Lead
+Focuses on interaction, usability and visual consistency.
 
-## 🛠️ Getting Started
+## ⚡ What it demonstrates
 
-### Prerequisites
-- Node.js 18+
-- npm, yarn, or pnpm
-- API keys for your preferred LLM provider (e.g., OpenAI, Google Gemini)
+- **Multi-agent orchestration** — specialized roles collaborate instead of one generic prompt.
+- **Prompt chaining** — one agent's output becomes useful context for downstream agents.
+- **Context management** — preserve relevant information while keeping each role focused.
+- **Realtime interaction** — watch the reasoning workflow as the company simulation progresses.
+- **AI-native UX** — the interface is designed around the workflow, not just a chat box.
 
-### Installation
+## 🛠️ Stack
 
-1. Clone the repository:
+| Layer | Technology |
+|---|---|
+| Framework | Next.js App Router |
+| UI | React 18 |
+| Styling | Tailwind CSS |
+| AI | LLM APIs + structured prompting |
+| Runtime | Node.js 18+ |
+
+## 🚀 Run locally
+
 ```bash
 git clone https://github.com/sagar25446-prog/AI-AGENTS-.git
 cd AI-AGENTS-
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env.local` file and add your API keys:
-```env
-NEXT_PUBLIC_LLM_API_KEY=your_api_key_here
-```
+Create `.env.local` with the API configuration expected by the project, then:
 
-4. Run the development server:
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open `http://localhost:3000`.
 
-## 📦 Tech Stack
+## 🔬 Why I built it
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router)
-- **UI Library**: React
-- **Styling**: Tailwind CSS
-- **AI Integration**: Direct REST API calls with structured prompt engineering
+This project is a compact experiment in **agentic software design**. It sits alongside my larger AI projects and helped me explore role separation, context passing and human-visible agent workflows.
 
-## 🤝 Contributing
+## 👨‍💻 Author
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/sagar25446-prog/AI-AGENTS-/issues).
+**Sagar Hundia** · [GitHub](https://github.com/sagar25446-prog)
 
-## 📄 License
+---
 
-This project is licensed under the MIT License.
+`one goal → multiple perspectives → one system`
