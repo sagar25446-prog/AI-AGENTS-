@@ -1,27 +1,25 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { callBharatCode } from '@/lib/bharatcode';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
-// Try multiple models in case one is unavailable
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
-
-async function callWithFallback(contents: string, config: any) {
+async function callGeminiFallback(contents: string, config: any) {
   let lastError: any;
-  for (const model of MODELS) {
+  for (const model of GEMINI_MODELS) {
     try {
-      console.log(`[generate] Trying model: ${model}`);
+      console.log(`[generate] Trying Gemini fallback model: ${model}`);
       const response = await ai.models.generateContent({
         model,
         contents,
         config,
       });
-      console.log(`[generate] Success with model: ${model}`);
-      return response;
+      console.log(`[generate] Success with Gemini fallback: ${model}`);
+      return response.text || '';
     } catch (err: any) {
-      console.error(`[generate] Model ${model} failed:`, err.message);
+      console.error(`[generate] Gemini model ${model} failed:`, err.message);
       lastError = err;
-      // Only retry on 404, 429, 503 — not on auth errors
       if (err.status && ![404, 429, 503].includes(err.status)) {
         throw err;
       }
@@ -36,10 +34,6 @@ export async function POST(request: Request) {
 
     if (!idea) {
       return NextResponse.json({ error: 'Idea is required' }, { status: 400 });
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
     const prompt = `You are an expert Senior Web Developer. Your task is to build a completely functional, single-file HTML/JavaScript/TailwindCSS web application based on this idea:
@@ -62,22 +56,58 @@ CRITICAL REQUIREMENTS:
 
 Begin your response with <!DOCTYPE html> and end with </html>. Output NOTHING else.`;
 
-    const response = await callWithFallback(prompt, { temperature: 0.2 });
+    let htmlContent = '';
 
-    let htmlContent = response.text || '';
-    
+    // Primary: BharatCode Model API
+    if (process.env.BHARATCODE_API_KEY) {
+      try {
+        console.log('[generate] Calling BharatCode Model API for app generation...');
+        htmlContent = await callBharatCode(
+          [
+            {
+              role: 'system',
+              content: 'You are a world-class Frontend Engineer producing production-grade, standalone single-file HTML applications.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          {
+            temperature: 0.2,
+            max_tokens: 3500,
+          }
+        );
+        console.log('[generate] Successfully generated app using BharatCode Model API!');
+      } catch (bcError: any) {
+        console.warn('[generate] BharatCode API error, attempting fallback:', bcError.message);
+        if (process.env.GEMINI_API_KEY) {
+          htmlContent = await callGeminiFallback(prompt, { temperature: 0.2 });
+        } else {
+          throw bcError;
+        }
+      }
+    } else if (process.env.GEMINI_API_KEY) {
+      htmlContent = await callGeminiFallback(prompt, { temperature: 0.2 });
+    } else {
+      return NextResponse.json(
+        { error: 'Neither BHARATCODE_API_KEY nor GEMINI_API_KEY configured' },
+        { status: 500 }
+      );
+    }
+
     // Strip markdown code fences if present
     const fenceMatch = htmlContent.match(/```(?:html)?\s*\n([\s\S]*?)```/);
     if (fenceMatch) {
       htmlContent = fenceMatch[1].trim();
     }
-    
+
     // Extract from <!DOCTYPE html> if there's preamble text
     const doctypeIndex = htmlContent.indexOf('<!DOCTYPE html>');
     if (doctypeIndex > 0) {
       htmlContent = htmlContent.slice(doctypeIndex);
     }
-    
+
     // Trim anything after </html>
     const htmlEndIndex = htmlContent.lastIndexOf('</html>');
     if (htmlEndIndex !== -1) {
@@ -88,9 +118,12 @@ Begin your response with <!DOCTYPE html> and end with </html>. Output NOTHING el
       return NextResponse.json({ error: 'LLM did not return valid HTML' }, { status: 500 });
     }
 
-    return NextResponse.json({ html: htmlContent });
+    return NextResponse.json({ html: htmlContent, engine: 'BharatCode' });
   } catch (error: any) {
     console.error('Error generating app:', error);
-    return NextResponse.json({ error: error.message || 'Failed to generate application' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Failed to generate application' },
+      { status: 500 }
+    );
   }
 }

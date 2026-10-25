@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { callBharatCode } from '@/lib/bharatcode';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
-
-async function callWithFallback(contents: string, config: any) {
+async function callGeminiFallback(contents: string, config: any) {
   let lastError: any;
-  for (const model of MODELS) {
+  for (const model of GEMINI_MODELS) {
     try {
-      console.log(`[debates] Trying model: ${model}`);
+      console.log(`[debates] Trying Gemini fallback model: ${model}`);
       const response = await ai.models.generateContent({
         model,
         contents,
         config,
       });
-      console.log(`[debates] Success with model: ${model}`);
-      return response;
+      console.log(`[debates] Success with Gemini fallback: ${model}`);
+      return response.text || '{}';
     } catch (err: any) {
-      console.error(`[debates] Model ${model} failed:`, err.message);
+      console.error(`[debates] Gemini model ${model} failed:`, err.message);
       lastError = err;
       if (err.status && ![404, 429, 503].includes(err.status)) {
         throw err;
@@ -34,10 +34,6 @@ export async function POST(request: Request) {
 
     if (!idea) {
       return NextResponse.json({ error: 'Idea is required' }, { status: 400 });
-    }
-
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
     const prompt = `You are the Debate Engine for an AI Company Simulator.
@@ -92,11 +88,76 @@ Output this exact JSON structure:
       "intensity": 6
     }]
   }],
-  "ceo-planning": [{ same structure }],
-  "product-requirements": [{ same structure }],
-  "ui-ux-design": [{ same structure }],
-  "frontend-development": [{ same structure }],
-  "backend-development": [{ same structure }]
+  "ceo-planning": [{
+    "id": "debate-cp-1",
+    "topic": "string",
+    "status": "resolved",
+    "intensity": 7,
+    "participants": ["ceo", "project-manager", "product-manager"],
+    "messages": [{
+      "id": "msg-cp-1",
+      "agentId": "ceo",
+      "content": "string mentioning ${idea} specifically",
+      "type": "proposal",
+      "intensity": 6
+    }]
+  }],
+  "product-requirements": [{
+    "id": "debate-pr-1",
+    "topic": "string",
+    "status": "resolved",
+    "intensity": 7,
+    "participants": ["product-manager", "ui-ux-designer", "frontend-engineer"],
+    "messages": [{
+      "id": "msg-pr-1",
+      "agentId": "product-manager",
+      "content": "string mentioning ${idea} specifically",
+      "type": "proposal",
+      "intensity": 6
+    }]
+  }],
+  "ui-ux-design": [{
+    "id": "debate-ud-1",
+    "topic": "string",
+    "status": "resolved",
+    "intensity": 7,
+    "participants": ["ui-ux-designer", "frontend-engineer", "marketing-manager"],
+    "messages": [{
+      "id": "msg-ud-1",
+      "agentId": "ui-ux-designer",
+      "content": "string mentioning ${idea} specifically",
+      "type": "proposal",
+      "intensity": 6
+    }]
+  }],
+  "frontend-development": [{
+    "id": "debate-fd-1",
+    "topic": "string",
+    "status": "resolved",
+    "intensity": 7,
+    "participants": ["frontend-engineer", "backend-engineer", "ui-ux-designer"],
+    "messages": [{
+      "id": "msg-fd-1",
+      "agentId": "frontend-engineer",
+      "content": "string mentioning ${idea} specifically",
+      "type": "proposal",
+      "intensity": 6
+    }]
+  }],
+  "backend-development": [{
+    "id": "debate-bd-1",
+    "topic": "string",
+    "status": "resolved",
+    "intensity": 7,
+    "participants": ["backend-engineer", "database-architect", "devops-engineer"],
+    "messages": [{
+      "id": "msg-bd-1",
+      "agentId": "backend-engineer",
+      "content": "string mentioning ${idea} specifically",
+      "type": "proposal",
+      "intensity": 6
+    }]
+  }]
 }
 
 Valid message types: "proposal", "challenge", "counter-argument", "agreement", "decision", "compromise"
@@ -104,13 +165,52 @@ Valid agentIds per stage are listed above.
 
 Respond with ONLY the JSON object. No markdown, no explanation.`;
 
-    const response = await callWithFallback(prompt, {
-      temperature: 0.8,
-      responseMimeType: 'application/json',
-    });
+    let jsonText = '';
 
-    let jsonText = response.text || '{}';
-    
+    // Primary: BharatCode Model API
+    if (process.env.BHARATCODE_API_KEY) {
+      try {
+        console.log('[debates] Calling BharatCode Model API for agent debates...');
+        jsonText = await callBharatCode(
+          [
+            {
+              role: 'system',
+              content: 'You are an autonomous Multi-Agent Debate Engine outputting strict, valid JSON matching the exact schema requested.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          {
+            temperature: 0.8,
+            max_tokens: 3500,
+          }
+        );
+        console.log('[debates] Successfully generated debates via BharatCode Model API!');
+      } catch (bcError: any) {
+        console.warn('[debates] BharatCode API error, attempting fallback:', bcError.message);
+        if (process.env.GEMINI_API_KEY) {
+          jsonText = await callGeminiFallback(prompt, {
+            temperature: 0.8,
+            responseMimeType: 'application/json',
+          });
+        } else {
+          throw bcError;
+        }
+      }
+    } else if (process.env.GEMINI_API_KEY) {
+      jsonText = await callGeminiFallback(prompt, {
+        temperature: 0.8,
+        responseMimeType: 'application/json',
+      });
+    } else {
+      return NextResponse.json(
+        { error: 'Neither BHARATCODE_API_KEY nor GEMINI_API_KEY configured' },
+        { status: 500 }
+      );
+    }
+
     // Try to extract JSON if wrapped in code fences
     const jsonMatch = jsonText.match(/```(?:json)?\s*\n([\s\S]*?)```/);
     if (jsonMatch) {
@@ -118,7 +218,7 @@ Respond with ONLY the JSON object. No markdown, no explanation.`;
     }
 
     const parsed = JSON.parse(jsonText);
-    
+
     // Validate that we got actual debate data
     const stageKeys = Object.keys(parsed);
     if (stageKeys.length === 0) {

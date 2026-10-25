@@ -1,0 +1,6 @@
+Project: Autonomous AI Company Simulator (DevCorp AI)
+Author: Sagar Jain (github.com/sagar25446-prog)
+Event: BharatCode Build League 2026
+Base URL: https://bharatcode.ai/api/model/v1
+Integration: Powered by BharatCode Model API (Qwen 3.8 27B / DeepSeek V4.1 Flash) for multi-agent autonomous decision making, real-time agent debates, and full-stack interactive application generation.
+Track: Artificial Intelligence Agents & Productivity / Automation
